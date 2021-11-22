@@ -1,19 +1,30 @@
 package com.user.management.controller;
 
+import org.apache.commons.collections.map.HashedMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.user.management.dto.*;
-import com.user.management.exceptions.ResourceNotFoundException;
-import com.user.management.jwt.JwtUserDetailsService;
-import com.user.management.model.Token;
 import com.user.management.service.UserService;
 import com.user.management.util.BaseHeader;
 import com.user.management.util.Utils;
 
+import net.sf.jasperreports.engine.JRException;
+import net.sf.jasperreports.engine.JasperCompileManager;
+import net.sf.jasperreports.engine.JasperExportManager;
+import net.sf.jasperreports.engine.JasperFillManager;
+import net.sf.jasperreports.engine.JasperPrint;
+import net.sf.jasperreports.engine.JasperReport;
+import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -110,5 +121,19 @@ public class UserController {
             logger.debug("Caught error : " + e.getMessage());
             return ResponseEntity.ok().body(new ParentResponse(new CommonResponse(e.getMessage(), "NOT_OK", "")));
         }
+    }
+    
+    @GetMapping(path = "/pdf")
+    public ResponseEntity<byte[]> generatePdf() throws Exception, JRException {
+        JRBeanCollectionDataSource beanCollectionDataSource = new JRBeanCollectionDataSource(userService.getUsers());
+        JasperReport compileReport =  JasperCompileManager.compileReport(new FileInputStream("src/main/resources/invoice.jrxml"));
+        
+        HashMap<String, Object> map = new HashMap<>();
+        JasperPrint report =  JasperFillManager.fillReport(compileReport, map, beanCollectionDataSource);
+        //JasperExportManager.exportReportToPdfFile(report, "invoice.pdf");
+        byte[] reportPdfFile = JasperExportManager.exportReportToPdf(report);
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "inline;filename=invoice.pdf");
+        return ResponseEntity.ok().headers(headers).contentType(MediaType.APPLICATION_PDF).body(reportPdfFile);
     }
 }
